@@ -991,6 +991,10 @@ function isAuthError(message) {
         || m.includes('invalid api key') || m.includes('authentication');
 }
 
+function getNonEmptyString(value) {
+    return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
 async function callLLM(messages, signal) {
     const profile = getSelectedProfile();
     const source = profile?.api || activeSource;
@@ -1021,11 +1025,18 @@ async function callLLM(messages, signal) {
             body.siliconflow_endpoint = profile['api-url'];
             body.minimax_endpoint = profile['api-url'];
         }
+        const reverseProxy = getNonEmptyString(profile.reverse_proxy) || getNonEmptyString(activePreset?.reverse_proxy);
+        const proxyPassword = getNonEmptyString(profile.proxy_password) || getNonEmptyString(activePreset?.proxy_password);
+        if (reverseProxy) body.reverse_proxy = reverseProxy;
+        if (proxyPassword) body.proxy_password = proxyPassword;
         if (profile['prompt-post-processing']) body.custom_prompt_post_processing = profile['prompt-post-processing'];
     } else if (activePreset) {
-        if (activePreset.custom_url) body.custom_url = activePreset.custom_url;
-        if (activePreset.reverse_proxy) body.reverse_proxy = activePreset.reverse_proxy;
-        if (activePreset.proxy_password) body.proxy_password = activePreset.proxy_password;
+        const customUrl = getNonEmptyString(activePreset.custom_url);
+        const reverseProxy = getNonEmptyString(activePreset.reverse_proxy);
+        const proxyPassword = getNonEmptyString(activePreset.proxy_password);
+        if (customUrl) body.custom_url = customUrl;
+        if (reverseProxy) body.reverse_proxy = reverseProxy;
+        if (proxyPassword) body.proxy_password = proxyPassword;
     }
 
     CoreAPI.debugLog('[CharCreator] Sending request:', {
