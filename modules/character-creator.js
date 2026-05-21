@@ -995,23 +995,6 @@ function getNonEmptyString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
-function getProfileValue(profile, keys) {
-    if (!profile || typeof profile !== 'object') return '';
-    for (const key of keys) {
-        const v = getNonEmptyString(profile[key]);
-        if (v) return v;
-    }
-    return '';
-}
-
-function getProfileProxyConfig(profile) {
-    const reverseProxy = getProfileValue(profile, ['reverse_proxy', 'reverse-proxy', 'reverseProxy'])
-        || getProfileValue(profile?.proxy, ['reverse_proxy', 'reverse-proxy', 'reverseProxy', 'url']);
-    const proxyPassword = getProfileValue(profile, ['proxy_password', 'proxy-password', 'proxyPassword'])
-        || getProfileValue(profile?.proxy, ['proxy_password', 'proxy-password', 'proxyPassword', 'password']);
-    return { reverseProxy, proxyPassword };
-}
-
 async function callLLM(messages, signal) {
     const profile = getSelectedProfile();
     const source = profile?.api || activeSource;
@@ -1042,20 +1025,15 @@ async function callLLM(messages, signal) {
             body.siliconflow_endpoint = profile['api-url'];
             body.minimax_endpoint = profile['api-url'];
         }
-        const proxyCfg = getProfileProxyConfig(profile);
-        const reverseProxy = proxyCfg.reverseProxy
-            || getNonEmptyString(activePreset?.reverse_proxy)
-            || getNonEmptyString(activePreset?.['reverse-proxy']);
-        const proxyPassword = proxyCfg.proxyPassword
-            || getNonEmptyString(activePreset?.proxy_password)
-            || getNonEmptyString(activePreset?.['proxy-password']);
+        const reverseProxy = getNonEmptyString(profile.reverse_proxy) || getNonEmptyString(activePreset?.reverse_proxy);
+        const proxyPassword = getNonEmptyString(profile.proxy_password) || getNonEmptyString(activePreset?.proxy_password);
         if (reverseProxy) body.reverse_proxy = reverseProxy;
         if (proxyPassword) body.proxy_password = proxyPassword;
         if (profile['prompt-post-processing']) body.custom_prompt_post_processing = profile['prompt-post-processing'];
     } else if (activePreset) {
         const customUrl = getNonEmptyString(activePreset.custom_url);
-        const reverseProxy = getNonEmptyString(activePreset.reverse_proxy) || getNonEmptyString(activePreset['reverse-proxy']);
-        const proxyPassword = getNonEmptyString(activePreset.proxy_password) || getNonEmptyString(activePreset['proxy-password']);
+        const reverseProxy = getNonEmptyString(activePreset.reverse_proxy);
+        const proxyPassword = getNonEmptyString(activePreset.proxy_password);
         if (customUrl) body.custom_url = customUrl;
         if (reverseProxy) body.reverse_proxy = reverseProxy;
         if (proxyPassword) body.proxy_password = proxyPassword;
