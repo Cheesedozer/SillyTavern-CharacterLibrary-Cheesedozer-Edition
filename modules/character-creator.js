@@ -1017,13 +1017,16 @@ async function callLLM(messages, signal) {
     if (model) body.model = model;
 
     if (profile) {
-        if (profile['secret-id']) body.secret_id = profile['secret-id'];
-        if (profile['api-url']) {
-            body.custom_url = profile['api-url'];
-            body.vertexai_region = profile['api-url'];
-            body.zai_endpoint = profile['api-url'];
-            body.siliconflow_endpoint = profile['api-url'];
-            body.minimax_endpoint = profile['api-url'];
+        const secretId = getProfileValue(profile, ['secret-id', 'secret_id', 'secretId']);
+        if (secretId) body.secret_id = secretId;
+
+        const apiUrl = getProfileValue(profile, ['api-url', 'api_url', 'apiUrl', 'custom_url', 'customUrl']);
+        if (apiUrl) {
+            body.custom_url = apiUrl;
+            body.vertexai_region = apiUrl;
+            body.zai_endpoint = apiUrl;
+            body.siliconflow_endpoint = apiUrl;
+            body.minimax_endpoint = apiUrl;
         }
         const reverseProxy = getNonEmptyString(profile.reverse_proxy) || getNonEmptyString(activePreset?.reverse_proxy);
         const proxyPassword = getNonEmptyString(profile.proxy_password) || getNonEmptyString(activePreset?.proxy_password);
