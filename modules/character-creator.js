@@ -1004,9 +1004,6 @@ function creatorGetProfileValue(profile, keys) {
     return '';
 }
 
-// Back-compat alias for any stale references during partial reloads/older call sites.
-const getProfileValue = creatorGetProfileValue;
-
 function getProfileProxyConfig(profile) {
     const reverseProxy = creatorGetProfileValue(profile, ['reverse_proxy', 'reverse-proxy', 'reverseProxy'])
         || creatorGetProfileValue(profile?.proxy, ['reverse_proxy', 'reverse-proxy', 'reverseProxy', 'url']);
@@ -1037,9 +1034,14 @@ async function callLLM(messages, signal) {
     if (model) body.model = model;
 
     if (profile) {
-        body.secret_id = creatorGetProfileValue(profile, ['secret-id', 'secret_id', 'secretId']) || body.secret_id;
+        const secretId = creatorGetProfileValue(profile, ['secret-id', 'secret_id', 'secretId']);
+        if (secretId) body.secret_id = secretId;
 
         const apiUrl = creatorGetProfileValue(profile, ['api-url', 'api_url', 'apiUrl', 'custom_url', 'customUrl']);
+        const secretId = getProfileValue(profile, ['secret-id', 'secret_id', 'secretId']);
+        if (secretId) body.secret_id = secretId;
+
+        const apiUrl = getProfileValue(profile, ['api-url', 'api_url', 'apiUrl', 'custom_url', 'customUrl']);
         if (apiUrl) {
             body.custom_url = apiUrl;
             body.vertexai_region = apiUrl;
@@ -1062,6 +1064,15 @@ async function callLLM(messages, signal) {
         const customUrl = getNonEmptyString(activePreset.custom_url);
         const reverseProxy = getNonEmptyString(activePreset.reverse_proxy) || getNonEmptyString(activePreset['reverse-proxy']);
         const proxyPassword = getNonEmptyString(activePreset.proxy_password) || getNonEmptyString(activePreset['proxy-password']);
+        const reverseProxy = getNonEmptyString(profile.reverse_proxy) || getNonEmptyString(activePreset?.reverse_proxy);
+        const proxyPassword = getNonEmptyString(profile.proxy_password) || getNonEmptyString(activePreset?.proxy_password);
+        if (reverseProxy) body.reverse_proxy = reverseProxy;
+        if (proxyPassword) body.proxy_password = proxyPassword;
+        if (profile['prompt-post-processing']) body.custom_prompt_post_processing = profile['prompt-post-processing'];
+    } else if (activePreset) {
+        const customUrl = getNonEmptyString(activePreset.custom_url);
+        const reverseProxy = getNonEmptyString(activePreset.reverse_proxy);
+        const proxyPassword = getNonEmptyString(activePreset.proxy_password);
         if (customUrl) body.custom_url = customUrl;
         if (reverseProxy) body.reverse_proxy = reverseProxy;
         if (proxyPassword) body.proxy_password = proxyPassword;
