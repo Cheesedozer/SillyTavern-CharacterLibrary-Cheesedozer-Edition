@@ -995,6 +995,23 @@ function getNonEmptyString(value) {
     return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
+function creatorGetProfileValue(profile, keys) {
+    if (!profile || typeof profile !== 'object') return '';
+    for (const key of keys) {
+        const v = getNonEmptyString(profile[key]);
+        if (v) return v;
+    }
+    return '';
+}
+
+function getProfileProxyConfig(profile) {
+    const reverseProxy = creatorGetProfileValue(profile, ['reverse_proxy', 'reverse-proxy', 'reverseProxy'])
+        || creatorGetProfileValue(profile?.proxy, ['reverse_proxy', 'reverse-proxy', 'reverseProxy', 'url']);
+    const proxyPassword = creatorGetProfileValue(profile, ['proxy_password', 'proxy-password', 'proxyPassword'])
+        || creatorGetProfileValue(profile?.proxy, ['proxy_password', 'proxy-password', 'proxyPassword', 'password']);
+    return { reverseProxy, proxyPassword };
+}
+
 async function callLLM(messages, signal) {
     const profile = getSelectedProfile();
     const source = profile?.api || activeSource;
@@ -1017,6 +1034,10 @@ async function callLLM(messages, signal) {
     if (model) body.model = model;
 
     if (profile) {
+        const secretId = creatorGetProfileValue(profile, ['secret-id', 'secret_id', 'secretId']);
+        if (secretId) body.secret_id = secretId;
+
+        const apiUrl = creatorGetProfileValue(profile, ['api-url', 'api_url', 'apiUrl', 'custom_url', 'customUrl']);
         const secretId = getProfileValue(profile, ['secret-id', 'secret_id', 'secretId']);
         if (secretId) body.secret_id = secretId;
 
@@ -1028,6 +1049,21 @@ async function callLLM(messages, signal) {
             body.siliconflow_endpoint = apiUrl;
             body.minimax_endpoint = apiUrl;
         }
+        const proxyCfg = getProfileProxyConfig(profile);
+        const reverseProxy = proxyCfg.reverseProxy
+            || getNonEmptyString(activePreset?.reverse_proxy)
+            || getNonEmptyString(activePreset?.['reverse-proxy']);
+        const proxyPassword = proxyCfg.proxyPassword
+            || getNonEmptyString(activePreset?.proxy_password)
+            || getNonEmptyString(activePreset?.['proxy-password']);
+        if (reverseProxy) body.reverse_proxy = reverseProxy;
+        if (proxyPassword) body.proxy_password = proxyPassword;
+        const promptPostProcessing = creatorGetProfileValue(profile, ['prompt-post-processing', 'prompt_post_processing', 'promptPostProcessing']);
+        if (promptPostProcessing) body.custom_prompt_post_processing = promptPostProcessing;
+    } else if (activePreset) {
+        const customUrl = getNonEmptyString(activePreset.custom_url);
+        const reverseProxy = getNonEmptyString(activePreset.reverse_proxy) || getNonEmptyString(activePreset['reverse-proxy']);
+        const proxyPassword = getNonEmptyString(activePreset.proxy_password) || getNonEmptyString(activePreset['proxy-password']);
         const reverseProxy = getNonEmptyString(profile.reverse_proxy) || getNonEmptyString(activePreset?.reverse_proxy);
         const proxyPassword = getNonEmptyString(profile.proxy_password) || getNonEmptyString(activePreset?.proxy_password);
         if (reverseProxy) body.reverse_proxy = reverseProxy;
