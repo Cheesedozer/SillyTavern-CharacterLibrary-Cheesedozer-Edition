@@ -991,6 +991,27 @@ function isAuthError(message) {
         || m.includes('invalid api key') || m.includes('authentication');
 }
 
+function getNonEmptyString(value) {
+    return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function creatorGetProfileValue(profile, keys) {
+    if (!profile || typeof profile !== 'object') return '';
+    for (const key of keys) {
+        const v = getNonEmptyString(profile[key]);
+        if (v) return v;
+    }
+    return '';
+}
+
+function getProfileProxyConfig(profile) {
+    const reverseProxy = creatorGetProfileValue(profile, ['reverse_proxy', 'reverse-proxy', 'reverseProxy'])
+        || creatorGetProfileValue(profile?.proxy, ['reverse_proxy', 'reverse-proxy', 'reverseProxy', 'url']);
+    const proxyPassword = creatorGetProfileValue(profile, ['proxy_password', 'proxy-password', 'proxyPassword'])
+        || creatorGetProfileValue(profile?.proxy, ['proxy_password', 'proxy-password', 'proxyPassword', 'password']);
+    return { reverseProxy, proxyPassword };
+}
+
 async function callLLM(messages, signal) {
     const profile = getSelectedProfile();
     const source = profile?.api || activeSource;
@@ -1013,19 +1034,35 @@ async function callLLM(messages, signal) {
     if (model) body.model = model;
 
     if (profile) {
-        if (profile['secret-id']) body.secret_id = profile['secret-id'];
-        if (profile['api-url']) {
-            body.custom_url = profile['api-url'];
-            body.vertexai_region = profile['api-url'];
-            body.zai_endpoint = profile['api-url'];
-            body.siliconflow_endpoint = profile['api-url'];
-            body.minimax_endpoint = profile['api-url'];
+        const secretId = creatorGetProfileValue(profile, ['secret-id', 'secret_id', 'secretId']);
+        if (secretId) body.secret_id = secretId;
+
+        const apiUrl = creatorGetProfileValue(profile, ['api-url', 'api_url', 'apiUrl', 'custom_url', 'customUrl']);
+        if (apiUrl) {
+            body.custom_url = apiUrl;
+            body.vertexai_region = apiUrl;
+            body.zai_endpoint = apiUrl;
+            body.siliconflow_endpoint = apiUrl;
+            body.minimax_endpoint = apiUrl;
         }
-        if (profile['prompt-post-processing']) body.custom_prompt_post_processing = profile['prompt-post-processing'];
+        const proxyCfg = getProfileProxyConfig(profile);
+        const reverseProxy = proxyCfg.reverseProxy
+            || getNonEmptyString(activePreset?.reverse_proxy)
+            || getNonEmptyString(activePreset?.['reverse-proxy']);
+        const proxyPassword = proxyCfg.proxyPassword
+            || getNonEmptyString(activePreset?.proxy_password)
+            || getNonEmptyString(activePreset?.['proxy-password']);
+        if (reverseProxy) body.reverse_proxy = reverseProxy;
+        if (proxyPassword) body.proxy_password = proxyPassword;
+        const promptPostProcessing = creatorGetProfileValue(profile, ['prompt-post-processing', 'prompt_post_processing', 'promptPostProcessing']);
+        if (promptPostProcessing) body.custom_prompt_post_processing = promptPostProcessing;
     } else if (activePreset) {
-        if (activePreset.custom_url) body.custom_url = activePreset.custom_url;
-        if (activePreset.reverse_proxy) body.reverse_proxy = activePreset.reverse_proxy;
-        if (activePreset.proxy_password) body.proxy_password = activePreset.proxy_password;
+        const customUrl = getNonEmptyString(activePreset.custom_url);
+        const reverseProxy = getNonEmptyString(activePreset.reverse_proxy) || getNonEmptyString(activePreset['reverse-proxy']);
+        const proxyPassword = getNonEmptyString(activePreset.proxy_password) || getNonEmptyString(activePreset['proxy-password']);
+        if (customUrl) body.custom_url = customUrl;
+        if (reverseProxy) body.reverse_proxy = reverseProxy;
+        if (proxyPassword) body.proxy_password = proxyPassword;
     }
 
     CoreAPI.debugLog('[CharCreator] Sending request:', {
