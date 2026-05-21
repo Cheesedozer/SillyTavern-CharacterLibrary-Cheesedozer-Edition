@@ -279,7 +279,7 @@ async function initModuleSystem() {
     try {
         loadModuleCSS('./character-creator.css');
         // Cache-bust to avoid stale ESM parse/runtime errors after hot updates.
-        const creatorModule = await import(`./character-creator.js?v=32`);
+        const creatorModule = await import(`./character-creator.js?v=31`);
         ModuleLoader.register('character-creator', creatorModule.default);
 
         window.openCharacterCreator = creatorModule.openModal;
